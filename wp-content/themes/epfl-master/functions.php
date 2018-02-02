@@ -229,7 +229,6 @@ function get_breadcrumb() {
             } else {
                 $base_breadcrumb .= '<li class="item-parent"><a class="bread-parent" href="' . $url . '" title="' . $name . '">' . $name . '</a></li>';
             }
-            $i++;
         }
         set_transient('base_breadcrumb', $base_breadcrumb, 1 * HOUR_IN_SECONDS);
     }
