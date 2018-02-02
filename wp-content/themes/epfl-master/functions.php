@@ -211,23 +211,20 @@ function get_breadcrumb() {
     // cache plugin is used. The transient API uses the Cache Object if such a plugin is setup, otherwise
     // it stores the value in the database as an option.
     if (false === ($base_breadcrumb = get_transient('base_breadcrumb'))) {
-        $site_url = site_url();
+        $temp_url = site_url();
         $breadcrumb_parts = Array();
-        $temp_url = $site_url;
         // Constructs an array mapping URLs to names. For example, on the site https://localhost/site1 :
         // ["https://localhost/site1" => "site1", "https://localhost" => "locahost"]
         while ($temp_url != 'http:/' && $temp_url != 'https:/') {
-            $name = basename($temp_url);
-            $breadcrumb_parts[$temp_url] = $name;
+            $breadcrumb_parts[$temp_url] = basename($temp_url);
             // Remove the last part of the URL :
             // "https://localhost/site1" => "https://localhost"
             $temp_url = substr($temp_url, 0, strrpos($temp_url, "/"));
         }
         $breadcrumb_parts = array_reverse($breadcrumb_parts);
         $base_breadcrumb = '';
-        $i = 0;
         foreach($breadcrumb_parts as $url => $name){
-            if ($i == 0) {
+            if ($base_breadcrumb == '') {
                 $base_breadcrumb .= '<li class="item-home"><a class="bread-link bread-home" href="' . $url . '" title="' . $name . '">' . $name . '</a></li>';
             } else {
                 $base_breadcrumb .= '<li class="item-parent"><a class="bread-parent" href="' . $url . '" title="' . $name . '">' . $name . '</a></li>';
