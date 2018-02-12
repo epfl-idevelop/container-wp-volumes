@@ -175,6 +175,72 @@ function tiny_mce_new_buttons() {
   add_filter( 'mce_buttons', 'tiny_mce_register_buttons' );
 }
 
+
+/*
+ * Parses the URL of the current page to return an array that allows to easily construct the HTML
+ * for the breadcrumb in get_breadcrumb() function.
+ *
+ * The returned array is of the form ["https://localhost" => "locahost", "https://localhost/site1" => "site1"]
+ * for the URL https://localhost/site1
+ */
+function construct_breadcrumb_from_url() {
+    $breadcrumb_parts = Array();
+    // Constructs an array mapping URLs to names. For example, on the site https://localhost/site1 :
+    // ["https://localhost/site1" => "site1", "https://localhost" => "locahost"]
+    $temp_url = site_url();
+    while ($temp_url != 'http:/' && $temp_url != 'https:/') {
+        $label = basename($temp_url);
+        if ($label === 'www.epfl.ch') {
+            $label = 'EPFL';
+        } else {
+            $matched = preg_match('/(.*).epfl.ch$/', $label, $matches, PREG_OFFSET_CAPTURE);
+            if ($matched) {
+                /* First element of $matches contains an array where the first element is the full
+                 * string matched by the regex.
+                 * The second element contains an array where the first element is the string matched
+                 * by the group.
+                 */
+                $label = $matches[1][0];
+            }
+        }
+        // Capitalize first letter
+        $label = ucfirst($label);
+        $breadcrumb_parts[$temp_url] = $label;
+        // Remove the last part of the URL :
+        // "https://localhost/site1" => "https://localhost"
+        $temp_url = substr($temp_url, 0, strrpos($temp_url, "/"));
+    }
+
+    return array_reverse($breadcrumb_parts);
+}
+
+
+/*
+ * Parses the option epfl:custom_breadcrumb to return an array that allows to easily construct the HTML
+ * for the breadcrumb in get_breadcrumb() function.
+ *
+ * The option must follow the format [label|url]>[label|url]>[label|url].
+ *
+ * The returned array is of the form ["https://localhost" => "locahost", "https://localhost/site1" => "site1"]
+ * for the URL https://localhost/site1
+ */
+function construct_breadcrumb_from_option($option) {
+    $breadcrumb_parts = Array();
+    // Constructs an array mapping URLs to names. For example, on the site https://localhost/site1 :
+    // ["https://localhost/site1" => "site1", "https://localhost" => "locahost"]
+
+    $parts = explode('>', $option);
+    foreach($parts as $part) {
+        $url_label = explode('|', $part);
+        $label = str_replace('[', '', $url_label[0]);
+        $url = str_replace(']', '', $url_label[1]);
+        $breadcrumb_parts[$url] = $label;
+    }
+
+    return $breadcrumb_parts;
+}
+
+
 /**
  * temp breadcrumb function
  */
@@ -211,27 +277,26 @@ function get_breadcrumb() {
     // cache plugin is used. The transient API uses the Cache Object if such a plugin is setup, otherwise
     // it stores the value in the database as an option.
     if (false === ($base_breadcrumb = get_transient('base_breadcrumb'))) {
-        $temp_url = site_url();
         $breadcrumb_parts = Array();
-        // Constructs an array mapping URLs to names. For example, on the site https://localhost/site1 :
-        // ["https://localhost/site1" => "site1", "https://localhost" => "locahost"]
-        while ($temp_url != 'http:/' && $temp_url != 'https:/') {
-            $breadcrumb_parts[$temp_url] = basename($temp_url);
-            // Remove the last part of the URL :
-            // "https://localhost/site1" => "https://localhost"
-            $temp_url = substr($temp_url, 0, strrpos($temp_url, "/"));
+        $breadcrumb_option = get_option('epfl:custom_breadcrumb');
+
+        if ($breadcrumb_option) {
+            $breadcrumb_parts = construct_breadcrumb_from_option($breadcrumb_option);
+        } else {
+            $breadcrumb_parts = construct_breadcrumb_from_url();
         }
-        $breadcrumb_parts = array_reverse($breadcrumb_parts);
         $base_breadcrumb = '';
-        foreach($breadcrumb_parts as $url => $name){
+        foreach($breadcrumb_parts as $url => $label){
             if ($base_breadcrumb == '') {
-                $base_breadcrumb .= '<li class="item-home"><a class="bread-link bread-home" href="' . $url . '" title="' . $name . '">' . $name . '</a></li>';
+                $base_breadcrumb .= '<li class="item-home"><a class="bread-link bread-home" href="' . $url . '" title="' . $label . '">' . $label . '</a></li>';
             } else {
-                $base_breadcrumb .= '<li class="item-parent"><a class="bread-parent" href="' . $url . '" title="' . $name . '">' . $name . '</a></li>';
+                $base_breadcrumb .= '<li class="item-parent"><a class="bread-parent" href="' . $url . '" title="' . $label . '">' . $label . '</a></li>';
             }
         }
         set_transient('base_breadcrumb', $base_breadcrumb, 1 * HOUR_IN_SECONDS);
     }
+
+    echo $base_breadcrumb;
        
     if ( is_archive() && !is_tax() && !is_category() && !is_tag() ) {
           
