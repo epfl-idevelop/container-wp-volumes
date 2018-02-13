@@ -234,6 +234,11 @@ function construct_breadcrumb_from_option($option) {
         $url_label = explode('|', $part);
         $label = str_replace('[', '', $url_label[0]);
         $url = str_replace(']', '', $url_label[1]);
+        // if the url does not start with 'http', add 'https://' to prevent the browser to handle it as
+        // a relative url.
+        if (strpos($url, 'http') !== 0) {
+            $url = 'https://' . $url;
+        }
         $breadcrumb_parts[$url] = $label;
     }
 
@@ -279,8 +284,11 @@ function get_breadcrumb() {
     if (false === ($base_breadcrumb = get_transient('base_breadcrumb'))) {
         $breadcrumb_parts = Array();
         $breadcrumb_option = get_option('epfl:custom_breadcrumb');
+        // Check any string of the form [label|url]>[label|url]>...>[label|url]
+        $breadcrumb_option_format = "/(^\[[^\|\[\]]+\|[^\|\[\]]+\]){1}(>(\[[^\|\[\]]+\|[^\|\[\]]+\]){1})*$/";
+        $matched = preg_match($breadcrumb_option_format, $breadcrumb_option);
 
-        if ($breadcrumb_option) {
+        if ($breadcrumb_option && $matched === 1) {
             $breadcrumb_parts = construct_breadcrumb_from_option($breadcrumb_option);
         } else {
             $breadcrumb_parts = construct_breadcrumb_from_url();
